@@ -45,11 +45,14 @@ trait AccessTokenTrait
             ->withClaim('scopes', $this->getScopes())
         ;
 
-        $claims = $this->getClaims();
-        $builder
-            ->withClaim('profile', array_key_exists('profile', $claims) ? $claims['profile'] : "1")
-            ->withClaim('profCode', array_key_exists('profCode', $claims) ? $claims['profCode'] : "55667788")
-        ;
+        if ($this->getUserIdentifier() !== null) {
+            $claims = $this->getClaims();
+            $builder
+                ->withClaim('profile', array_key_exists('profile', $claims) ? $claims['profile'] : "1")
+                ->withClaim('profCode', array_key_exists('profCode', $claims) ? $claims['profCode'] : "55667788")
+            ;
+        }
+
 
         return $builder->getToken(new Sha256(), new Key($privateKey->getKeyPath(), $privateKey->getPassPhrase()));
     }

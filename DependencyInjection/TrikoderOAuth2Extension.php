@@ -39,6 +39,7 @@ use Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\AccessTokenManager;
 use Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\AuthorizationCodeManager;
 use Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\ClientManager;
 use Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\RefreshTokenManager;
+use Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\UserManager;
 use Trikoder\Bundle\OAuth2Bundle\Manager\ScopeManagerInterface;
 use Trikoder\Bundle\OAuth2Bundle\Model\Scope as ScopeModel;
 use Trikoder\Bundle\OAuth2Bundle\Security\Authentication\Token\OAuth2TokenFactory;
@@ -260,6 +261,11 @@ final class TrikoderOAuth2Extension extends Extension implements PrependExtensio
 
         $container
             ->getDefinition(ClientManager::class)
+            ->replaceArgument('$entityManager', $entityManager)
+        ;
+
+        $container
+            ->getDefinition(UserManager::class)
             ->replaceArgument('$entityManager', $entityManager)
         ;
 

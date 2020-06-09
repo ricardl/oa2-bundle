@@ -13,7 +13,7 @@ use Trikoder\Bundle\OAuth2Bundle\Manager\ClientManagerInterface;
 
 final class DeleteClientCommand extends Command
 {
-    protected static $defaultName = 'trikoder:oauth2:delete-client';
+    protected static $defaultName = 'multi:oauth2:delete-client';
 
     /**
      * @var ClientManagerInterface

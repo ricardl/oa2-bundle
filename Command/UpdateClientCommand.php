@@ -18,7 +18,7 @@ use Trikoder\Bundle\OAuth2Bundle\Model\Scope;
 
 final class UpdateClientCommand extends Command
 {
-    protected static $defaultName = 'trikoder:oauth2:update-client';
+    protected static $defaultName = 'multi:oauth2:update-client';
 
     /**
      * @var ClientManagerInterface

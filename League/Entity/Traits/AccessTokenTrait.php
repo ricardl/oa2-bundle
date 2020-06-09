@@ -48,11 +48,10 @@ trait AccessTokenTrait
         if ($this->getUserIdentifier() !== null) {
             $claims = $this->getClaims();
             $builder
-                ->withClaim('profile', array_key_exists('profile', $claims) ? $claims['profile'] : "1")
-                ->withClaim('profCode', array_key_exists('profCode', $claims) ? $claims['profCode'] : "55667788")
+                ->withClaim('profile', array_key_exists('profile', $claims) ? $claims['profile'] : "")
+                ->withClaim('profCode', array_key_exists('profCode', $claims) ? $claims['profCode'] : "")
             ;
         }
-
 
         return $builder->getToken(new Sha256(), new Key($privateKey->getKeyPath(), $privateKey->getPassPhrase()));
     }

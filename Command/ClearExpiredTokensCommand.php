@@ -15,7 +15,7 @@ use Trikoder\Bundle\OAuth2Bundle\Manager\RefreshTokenManagerInterface;
 
 final class ClearExpiredTokensCommand extends Command
 {
-    protected static $defaultName = 'trikoder:oauth2:clear-expired-tokens';
+    protected static $defaultName = 'multi:oauth2:clear-expired-tokens';
 
     /**
      * @var AccessTokenManagerInterface

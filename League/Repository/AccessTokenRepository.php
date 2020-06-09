@@ -12,6 +12,7 @@ use Trikoder\Bundle\OAuth2Bundle\Converter\ScopeConverterInterface;
 use Trikoder\Bundle\OAuth2Bundle\League\Entity\AccessToken as AccessTokenEntity;
 use Trikoder\Bundle\OAuth2Bundle\Manager\AccessTokenManagerInterface;
 use Trikoder\Bundle\OAuth2Bundle\Manager\ClientManagerInterface;
+use Trikoder\Bundle\OAuth2Bundle\Manager\UserManagerInterface;
 use Trikoder\Bundle\OAuth2Bundle\Model\AccessToken as AccessTokenModel;
 
 final class AccessTokenRepository implements AccessTokenRepositoryInterface
@@ -31,20 +32,27 @@ final class AccessTokenRepository implements AccessTokenRepositoryInterface
      */
     private $scopeConverter;
 
+    /**
+     * @var UserManagerInterface
+     */
+    private $userManager;
+
     public function __construct(
         AccessTokenManagerInterface $accessTokenManager,
         ClientManagerInterface $clientManager,
-        ScopeConverterInterface $scopeConverter
+        ScopeConverterInterface $scopeConverter,
+        UserManagerInterface $userManager
     ) {
         $this->accessTokenManager = $accessTokenManager;
         $this->clientManager = $clientManager;
         $this->scopeConverter = $scopeConverter;
+        $this->userManager = $userManager;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getNewToken(ClientEntityInterface $clientEntity, array $scopes, $userIdentifier = null)
+    public function getNewToken(ClientEntityInterface $clientEntity, array $scopes, $userIdentifier = null, array $claims = [])
     {
         $accessToken = new AccessTokenEntity();
         $accessToken->setClient($clientEntity);
@@ -53,6 +61,14 @@ final class AccessTokenRepository implements AccessTokenRepositoryInterface
         foreach ($scopes as $scope) {
             $accessToken->addScope($scope);
         }
+        $user = $this->userManager->findOneByUsername($userIdentifier);
+        if ($user->getProfile()) {
+            $claims['profile'] = $user->getProfile();
+        }
+        if ($user->getCodProf()) {
+            $claims['profCode'] = $user->getCodProf();
+        }
+        $accessToken->addClaims($claims);
 
         return $accessToken;
     }

@@ -19,6 +19,7 @@
             <argument type="service" id="Trikoder\Bundle\OAuth2Bundle\Manager\AccessTokenManagerInterface" />
             <argument type="service" id="Trikoder\Bundle\OAuth2Bundle\Manager\ClientManagerInterface" />
             <argument type="service" id="Trikoder\Bundle\OAuth2Bundle\Converter\ScopeConverter" />
+            <argument type="service" id="Trikoder\Bundle\OAuth2Bundle\Manager\UserManagerInterface" />
         </service>
         <service id="trikoder.oauth2.league.repository.access_token_repository" alias="Trikoder\Bundle\OAuth2Bundle\League\Repository\AccessTokenRepository">
             <deprecated>The "%alias_id%" service alias is deprecated and will be removed in v4.</deprecated>

@@ -19,7 +19,7 @@ use Trikoder\Bundle\OAuth2Bundle\Model\Scope;
 
 final class CreateClientCommand extends Command
 {
-    protected static $defaultName = 'trikoder:oauth2:create-client';
+    protected static $defaultName = 'multi:oauth2:create-client';
 
     /**
      * @var ClientManagerInterface

@@ -10,6 +10,7 @@
         <service id="Trikoder\Bundle\OAuth2Bundle\Manager\RefreshTokenManagerInterface" alias="Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\RefreshTokenManager" />
         <service id="Trikoder\Bundle\OAuth2Bundle\Manager\ScopeManagerInterface" alias="Trikoder\Bundle\OAuth2Bundle\Manager\InMemory\ScopeManager" />
         <service id="Trikoder\Bundle\OAuth2Bundle\Manager\AuthorizationCodeManagerInterface" alias="Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\AuthorizationCodeManager" />
+        <service id="Trikoder\Bundle\OAuth2Bundle\Manager\UserManagerInterface" alias="Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\UserManager" />
 
         <!-- Services -->
         <service id="Trikoder\Bundle\OAuth2Bundle\Service\CredentialsRevokerInterface" alias="Trikoder\Bundle\OAuth2Bundle\Service\CredentialsRevoker\DoctrineCredentialsRevoker" />
@@ -22,6 +23,10 @@
         </service>
         <service id="trikoder.oauth2.manager.doctrine.client_manager" alias="Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\ClientManager">
             <deprecated>The "%alias_id%" service alias is deprecated and will be removed in v4.</deprecated>
+        </service>
+
+        <service id="Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\UserManager">
+            <argument key="$entityManager" />
         </service>
 
         <service id="Trikoder\Bundle\OAuth2Bundle\Manager\Doctrine\AccessTokenManager">

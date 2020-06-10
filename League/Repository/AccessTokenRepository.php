@@ -61,12 +61,14 @@ final class AccessTokenRepository implements AccessTokenRepositoryInterface
         foreach ($scopes as $scope) {
             $accessToken->addScope($scope);
         }
-        $user = $this->userManager->findOneByUsername($userIdentifier);
-        if ($user->getProfile()) {
-            $claims['profile'] = $user->getProfile();
-        }
-        if ($user->getCodProf()) {
-            $claims['profCode'] = $user->getCodProf();
+        if (!is_null($userIdentifier)) {
+            $user = $this->userManager->findOneByUsername($userIdentifier);
+            if ($user->getProfile()) {
+                $claims['profile'] = $user->getProfile();
+            }
+            if ($user->getCodProf()) {
+                $claims['profCode'] = $user->getCodProf();
+            }
         }
         $accessToken->addClaims($claims);
 

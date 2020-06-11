@@ -5,7 +5,7 @@ namespace Trikoder\Bundle\OAuth2Bundle\League\Entity\Traits;
 use DateTimeImmutable;
 use Lcobucci\JWT\Builder;
 use Lcobucci\JWT\Signer\Key;
-use Lcobucci\JWT\Signer\Rsa\Sha256;
+use Lcobucci\JWT\Signer\Rsa\Sha512;
 use Lcobucci\JWT\Token;
 use League\OAuth2\Server\CryptKey;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
@@ -53,7 +53,7 @@ trait AccessTokenTrait
             ;
         }
 
-        return $builder->getToken(new Sha256(), new Key($privateKey->getKeyPath(), $privateKey->getPassPhrase()));
+        return $builder->getToken(new Sha512(), new Key($privateKey->getKeyPath(), $privateKey->getPassPhrase()));
     }
 
     /**

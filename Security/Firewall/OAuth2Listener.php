@@ -61,7 +61,7 @@ final class OAuth2Listener
         $request = $this->httpMessageFactory->createRequest($event->getRequest());
 
         if (!$request->hasHeader('Authorization')) {
-            return;
+            throw Oauth2AuthenticationFailedException::create('Missing Authorization header');
         }
 
         try {

@@ -8,6 +8,7 @@ use Defuse\Crypto\Key;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+use Trikoder\Bundle\OAuth2Bundle\OAuth2Grants;
 
 final class Configuration implements ConfigurationInterface
 {
@@ -26,15 +27,15 @@ final class Configuration implements ConfigurationInterface
 
         $rootNode
             ->children()
-                ->scalarNode('exception_event_listener_priority')
-                    ->info('The priority of the event listener that converts an Exception to a Response')
-                    ->defaultValue(10)
-                ->end()
-                ->scalarNode('role_prefix')
-                    ->info('Set a custom prefix that replaces the default \'ROLE_OAUTH2_\' role prefix')
-                    ->defaultValue('ROLE_OAUTH2_')
-                    ->cannotBeEmpty()
-                ->end()
+            ->scalarNode('exception_event_listener_priority')
+            ->info('The priority of the event listener that converts an Exception to a Response.')
+            ->defaultValue(10)
+            ->end()
+            ->scalarNode('role_prefix')
+            ->info('Set a custom prefix that replaces the default "ROLE_OAUTH2_" role prefix.')
+            ->defaultValue('ROLE_OAUTH2_')
+            ->cannotBeEmpty()
+            ->end()
             ->end();
 
         return $treeBuilder;
@@ -48,65 +49,189 @@ final class Configuration implements ConfigurationInterface
         $node
             ->isRequired()
             ->children()
-                ->scalarNode('private_key')
-                    ->info("Full path to the private key file.\nHow to generate a private key: https://oauth2.thephpleague.com/installation/#generating-public-and-private-keys")
-                    ->example('/var/oauth/private.key')
-                    ->isRequired()
-                    ->cannotBeEmpty()
+            ->scalarNode('private_key')
+            ->info("Full path to the private key file.\nHow to generate a private key: https://oauth2.thephpleague.com/installation/#generating-public-and-private-keys")
+            ->example('/var/oauth/private.key')
+            ->isRequired()
+            ->cannotBeEmpty()
+            ->end()
+            ->scalarNode('private_key_passphrase')
+            ->info('Passphrase of the private key, if any.')
+            ->defaultValue(null)
+            ->end()
+            ->scalarNode('encryption_key')
+            ->info(sprintf("The plain string or the ascii safe string used to create a %s to be used as an encryption key.\nHow to generate an encryption key: https://oauth2.thephpleague.com/installation/#string-password", Key::class))
+            ->isRequired()
+            ->cannotBeEmpty()
+            ->end()
+            ->enumNode('encryption_key_type')
+            ->info("The type of value of 'encryption_key.'")
+            ->values(['plain', 'defuse'])
+            ->defaultValue('plain')
+            ->end()
+            ->scalarNode('access_token_ttl')
+            ->info("How long the issued access token should be valid for, used as a default if there is no grant type specific value set.\nThe value should be a valid interval: http://php.net/manual/en/dateinterval.construct.php#refsect1-dateinterval.construct-parameters")
+            ->cannotBeEmpty()
+            ->defaultValue('PT1H')
+            ->end()
+            ->scalarNode('refresh_token_ttl')
+            ->info("How long the issued refresh token should be valid for, used as a default if there is no grant type specific value set.\nThe value should be a valid interval: http://php.net/manual/en/dateinterval.construct.php#refsect1-dateinterval.construct-parameters")
+            ->cannotBeEmpty()
+            ->defaultValue('P1M')
+            ->end()
+
+            // @TODO Remove in v4 start
+            ->scalarNode('auth_code_ttl')
+            ->info("How long the issued authorization code should be valid for.\nThe value should be a valid interval: http://php.net/manual/en/dateinterval.construct.php#refsect1-dateinterval.construct-parameters")
+            ->cannotBeEmpty()
+            ->setDeprecated('"%path%.%node%" is deprecated, use "%path%.grant_types.authorization_code.auth_code_ttl" instead.')
+            ->beforeNormalization()
+            ->ifNull()
+            ->thenUnset()
+            ->end()
+            ->end()
+            ->booleanNode('require_code_challenge_for_public_clients')
+            ->info('Whether to require code challenge for public clients for the authorization code grant.')
+            ->setDeprecated('"%path%.%node%" is deprecated, use "%path%.grant_types.authorization_code.require_code_challenge_for_public_clients" instead.')
+            ->beforeNormalization()
+            ->ifNull()
+            ->thenUnset()
+            ->end()
+            ->end()
+            ->end()
+        ;
+
+        foreach (OAuth2Grants::ALL as $grantType => $grantTypeName) {
+            $oldGrantType = 'authorization_code' === $grantType ? 'auth_code' : $grantType;
+
+            $node
+                ->children()
+                ->booleanNode(sprintf('enable_%s_grant', $oldGrantType))
+                ->info(sprintf('Whether to enable the %s grant.', $grantTypeName))
+                ->setDeprecated(sprintf('"%%path%%.%%node%%" is deprecated, use "%%path%%.grant_types.%s.enable" instead.', $grantType))
+                ->beforeNormalization()
+                ->ifNull()
+                ->thenUnset()
                 ->end()
-                ->scalarNode('private_key_passphrase')
-                    ->info('Passphrase of the private key, if any')
-                    ->defaultValue(null)
                 ->end()
-                ->scalarNode('encryption_key')
-                    ->info(sprintf("The plain string or the ascii safe string used to create a %s to be used as an encryption key.\nHow to generate an encryption key: https://oauth2.thephpleague.com/installation/#string-password", Key::class))
-                    ->isRequired()
-                    ->cannotBeEmpty()
                 ->end()
-                ->enumNode('encryption_key_type')
-                    ->info("The type of value of 'encryption_key'")
-                    ->values(['plain', 'defuse'])
-                    ->defaultValue('plain')
+            ;
+        }
+        // @TODO Remove in v4 end
+
+        $node->append($this->createAuthorizationServerGrantTypesNode());
+
+        $node
+            ->validate()
+            ->always(static function ($v): array {
+                $grantTypesWithRefreshToken = array_flip(OAuth2Grants::WITH_REFRESH_TOKEN);
+
+                foreach ($v['grant_types'] as $grantType => &$grantTypeConfig) {
+                    $grantTypeConfig['access_token_ttl'] = $grantTypeConfig['access_token_ttl'] ?? $v['access_token_ttl'];
+
+                    if (isset($grantTypesWithRefreshToken[$grantType])) {
+                        $grantTypeConfig['refresh_token_ttl'] = $grantTypeConfig['refresh_token_ttl'] ?? $v['refresh_token_ttl'];
+                    }
+
+                    // @TODO Remove in v4 start
+                    $oldGrantType = 'authorization_code' === $grantType ? 'auth_code' : $grantType;
+
+                    $grantTypeConfig['enable'] = $v[sprintf('enable_%s_grant', $oldGrantType)] ?? $grantTypeConfig['enable'];
+
+                    if ('authorization_code' === $grantType) {
+                        $grantTypeConfig['auth_code_ttl'] = $v['auth_code_ttl'] ?? $grantTypeConfig['auth_code_ttl'];
+                        $grantTypeConfig['require_code_challenge_for_public_clients'] = $v['require_code_challenge_for_public_clients']
+                            ?? $grantTypeConfig['require_code_challenge_for_public_clients'];
+                    }
+                    // @TODO Remove in v4 end
+                }
+
+                unset(
+                    $v['access_token_ttl'],
+                    $v['refresh_token_ttl'],
+                    // @TODO Remove in v4 start
+                    $v['enable_auth_code_grant'],
+                    $v['enable_client_credentials_grant'],
+                    $v['enable_implicit_grant'],
+                    $v['enable_password_grant'],
+                    $v['enable_refresh_token_grant'],
+                    $v['auth_code_ttl'],
+                    $v['require_code_challenge_for_public_clients']
+                    // @TODO Remove in v4 end
+                );
+
+                return $v;
+            })
+            ->end()
+        ;
+
+        return $node;
+    }
+
+    private function createAuthorizationServerGrantTypesNode(): NodeDefinition
+    {
+        $treeBuilder = new TreeBuilder('grant_types');
+        $node = $treeBuilder->getRootNode();
+
+        $node
+            ->info('Enable and configure grant types.')
+            ->addDefaultsIfNotSet()
+        ;
+
+        foreach (OAuth2Grants::ALL as $grantType => $grantTypeName) {
+            $node
+                ->children()
+                ->arrayNode($grantType)
+                ->addDefaultsIfNotSet()
+                ->children()
+                ->booleanNode('enable')
+                ->info(sprintf('Whether to enable the %s grant.', $grantTypeName))
+                ->defaultTrue()
                 ->end()
                 ->scalarNode('access_token_ttl')
-                    ->info("How long the issued access token should be valid for.\nThe value should be a valid interval: http://php.net/manual/en/dateinterval.construct.php#refsect1-dateinterval.construct-parameters")
-                    ->cannotBeEmpty()
-                    ->defaultValue('PT1H')
+                ->info(sprintf('How long the issued access token should be valid for the %s grant.', $grantTypeName))
+                ->cannotBeEmpty()
+                ->beforeNormalization()
+                ->ifNull()
+                ->thenUnset()
                 ->end()
+                ->end()
+                ->end()
+                ->end()
+                ->end()
+            ;
+        }
+
+        foreach (OAuth2Grants::WITH_REFRESH_TOKEN as $grantType) {
+            $node
+                ->find($grantType)
+                ->children()
                 ->scalarNode('refresh_token_ttl')
-                    ->info("How long the issued refresh token should be valid for.\nThe value should be a valid interval: http://php.net/manual/en/dateinterval.construct.php#refsect1-dateinterval.construct-parameters")
-                    ->cannotBeEmpty()
-                    ->defaultValue('P1M')
+                ->info(sprintf('How long the issued refresh token should be valid for the %s grant.', OAuth2Grants::ALL[$grantType]))
+                ->cannotBeEmpty()
+                ->beforeNormalization()
+                ->ifNull()
+                ->thenUnset()
                 ->end()
-                ->scalarNode('auth_code_ttl')
-                    ->info("How long the issued auth code should be valid for.\nThe value should be a valid interval: http://php.net/manual/en/dateinterval.construct.php#refsect1-dateinterval.construct-parameters")
-                    ->cannotBeEmpty()
-                    ->defaultValue('PT10M')
                 ->end()
-                ->booleanNode('enable_client_credentials_grant')
-                    ->info('Whether to enable the client credentials grant')
-                    ->defaultTrue()
                 ->end()
-                ->booleanNode('enable_password_grant')
-                    ->info('Whether to enable the password grant')
-                    ->defaultTrue()
                 ->end()
-                ->booleanNode('enable_refresh_token_grant')
-                    ->info('Whether to enable the refresh token grant')
-                    ->defaultTrue()
-                ->end()
-                ->booleanNode('enable_auth_code_grant')
-                    ->info('Whether to enable the authorization code grant')
-                    ->defaultTrue()
-                ->end()
-                ->booleanNode('require_code_challenge_for_public_clients')
-                    ->info('Whether to require code challenge for public clients for the auth code grant')
-                    ->defaultTrue()
-                ->end()
-                ->booleanNode('enable_implicit_grant')
-                    ->info('Whether to enable the implicit grant')
-                    ->defaultTrue()
-                ->end()
+            ;
+        }
+
+        $node
+            ->find('authorization_code')
+            ->children()
+            ->scalarNode('auth_code_ttl')
+            ->info("How long the issued authorization code should be valid for.\nThe value should be a valid interval: http://php.net/manual/en/dateinterval.construct.php#refsect1-dateinterval.construct-parameters")
+            ->cannotBeEmpty()
+            ->defaultValue('PT10M')
+            ->end()
+            ->booleanNode('require_code_challenge_for_public_clients')
+            ->info('Whether to require code challenge for public clients for the authorization code grant.')
+            ->defaultTrue()
+            ->end()
+            ->end()
             ->end()
         ;
 
@@ -121,12 +246,12 @@ final class Configuration implements ConfigurationInterface
         $node
             ->isRequired()
             ->children()
-                ->scalarNode('public_key')
-                    ->info("Full path to the public key file\nHow to generate a public key: https://oauth2.thephpleague.com/installation/#generating-public-and-private-keys")
-                    ->example('/var/oauth/public.key')
-                    ->isRequired()
-                    ->cannotBeEmpty()
-                ->end()
+            ->scalarNode('public_key')
+            ->info("Full path to the public key file.\nHow to generate a public key: https://oauth2.thephpleague.com/installation/#generating-public-and-private-keys")
+            ->example('/var/oauth/public.key')
+            ->isRequired()
+            ->cannotBeEmpty()
+            ->end()
             ->end()
         ;
 
@@ -157,19 +282,19 @@ final class Configuration implements ConfigurationInterface
             ->isRequired()
             ->performNoDeepMerging()
             ->children()
-                // Doctrine persistence
-                ->arrayNode('doctrine')
-                    ->children()
-                        ->scalarNode('entity_manager')
-                            ->info('Name of the entity manager that you wish to use for managing clients and tokens.')
-                            ->cannotBeEmpty()
-                            ->defaultValue('default')
-                        ->end()
-                    ->end()
-                ->end()
-                // In-memory persistence
-                ->scalarNode('in_memory')
-                ->end()
+            // Doctrine persistence
+            ->arrayNode('doctrine')
+            ->children()
+            ->scalarNode('entity_manager')
+            ->info('Name of the entity manager that you wish to use for managing clients and tokens.')
+            ->cannotBeEmpty()
+            ->defaultValue('default')
+            ->end()
+            ->end()
+            ->end()
+            // In-memory persistence
+            ->scalarNode('in_memory')
+            ->end()
             ->end()
         ;
 

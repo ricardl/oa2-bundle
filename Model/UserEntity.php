@@ -11,13 +11,13 @@ class UserEntity implements UserEntityInterface
 {
     use EntityTrait;
     /** @var string|null */
-    private $codProf;
+    protected $codProf;
     /** @var string|null */
-    private $profile;
+    protected $profile;
     /** @var string|null */
-    private $username;
+    protected $username;
     /** @var string */
-    private $id;
+    protected $id;
 
     /**
      * @return string|null
